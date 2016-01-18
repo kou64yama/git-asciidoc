@@ -1,0 +1,21 @@
+= git-asciidoc =
+
+:author: YAMADA Koji
+:source-highlighter: coderay
+:coderay-css: style
+
+== Usage ==
+
+[source,bash]
+---------------------------------------------------------------------
+git asciidoc [-h] [-p] [-o output.html] <input.adoc>
+---------------------------------------------------------------------
+
+=== Options ===
+
+-h::
+    Print help
+-p::
+    Include patch
+-o::
+    Output file
