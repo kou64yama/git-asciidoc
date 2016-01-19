@@ -1,0 +1,62 @@
+#!/bin/bash
+
+git="git -c core.pager= -c color.ui=false"
+
+usage_exit() {
+    echo "Usage: git asciidoc [-h] [-p] [-o outfile] <infile>" >&2
+    exit 1
+}
+
+while getopts hp OPTNAME; do
+    case $OPTNAME in
+        h) usage_exit;;
+        p) diff=yes;;
+        o) outfile=$OPTARG;;
+    esac
+done
+shift $((OPTIND - 1))
+
+infile=$1
+
+if [ ! -f "${infile}" ]; then
+    usage_exit
+fi
+
+format=$([ "$diff" = "yes" ] && echo "| %ad | %an | <<diff-%H, %s>>" || echo "| %ad | %an | %s")
+
+print_asciidoc() {
+    cat <<EOF
+$(cat "$infile")
+
+== 更新履歴 ==
+
+[col=1,2,4,headers]
+|====
+| 日時 | 更新者 | 内容
+$($git log --date=short --pretty="$format" "$infile")
+|====
+EOF
+
+    if [ "$diff" != "yes" ]; then
+        return
+    fi
+
+    echo
+    for h in $($git log --pretty="%H" "$infile"); do
+        cat <<EOF
+[[diff-$h, $h]]
+=== $($git log --pretty="%s" $h "$infile") ===
+
+[source,diff]
+----------------------------------------------------------------------
+$($git log -p --pretty= $h $infile)
+----------------------------------------------------------------------
+EOF
+    done
+}
+
+if [ -z "$outfile" ]; then
+    print_asciidoc
+else
+    print_asciidoc > "$outfile"
+fi
