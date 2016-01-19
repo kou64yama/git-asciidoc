@@ -7,7 +7,7 @@ usage_exit() {
     exit 1
 }
 
-while getopts hp OPTNAME; do
+while getopts hpo: OPTNAME; do
     case $OPTNAME in
         h) usage_exit;;
         p) diff=yes;;
