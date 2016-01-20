@@ -1,62 +1,67 @@
 #!/bin/bash
 
-git="git -c core.pager= -c color.ui=false"
+git_opts="-c core.pager= -c color.ui=false"
+git_log_opts=""
+title="Git Log"
+level=1
 
 usage_exit() {
-    echo "Usage: git asciidoc [-h] [-p] [-o outfile] <infile>" >&2
+    cat << EOF
+Usage: git logdoc [-h] [-t title] [-n max-count] [-l level] [-o outfile]
+EOF
     exit 1
 }
 
-while getopts hpo: OPTNAME; do
+print_asciidoc() {
+    local h=
+    for i in $(seq $level); do
+        h="${h}="
+    done
+
+    local pretty="=$h %s =$h %n%n[horizontal]%nDate::%n  %ad%nAuthor::%n  %an%n%n%b"
+
+    cat << EOF
+$h $title $h
+
+[cols=">2,3,9",options="header"]
+|====
+| Date | Author | Message
+$(git $git_opts log $git_log_opts --date=short --pretty="| %ad | %an | <<log-%H, %s>>")
+|====
+EOF
+
+    echo
+    local commits=$(git $git_opts log $git_log_opts --pretty="%H" $@)
+    for commit in $commits; do
+        cat << EOF
+[[log-$commit, $commit]]
+$(git $git_opts log -n1 --pretty="$pretty" $commit $@)
+
+[source,diff]
+----
+$(git $git_opts log -n1 -p --pretty= $commit $@)
+----
+EOF
+    done
+}
+
+while getopts ht:n:l:o: OPTNAME; do
     case $OPTNAME in
         h) usage_exit;;
-        p) diff=yes;;
+        t) title=$OPTARG;;
+        n) git_log_opts="$git_log_opts -n $OPTARG";;
+        l) level=$OPTARG;;
         o) outfile=$OPTARG;;
     esac
 done
 shift $((OPTIND - 1))
 
-infile=$1
-
-if [ ! -f "${infile}" ]; then
-    usage_exit
+if [ ! $level -ge 1 ]; then
+    usage_exit >&2
 fi
 
-format=$([ "$diff" = "yes" ] && echo "| %ad | %an | <<diff-%H, %s>>" || echo "| %ad | %an | %s")
-
-print_asciidoc() {
-    cat <<EOF
-$(cat "$infile")
-
-== 更新履歴 ==
-
-[col=1,2,4,headers]
-|====
-| 日時 | 更新者 | 内容
-$($git log --date=short --pretty="$format" "$infile")
-|====
-EOF
-
-    if [ "$diff" != "yes" ]; then
-        return
-    fi
-
-    echo
-    for h in $($git log --pretty="%H" "$infile"); do
-        cat <<EOF
-[[diff-$h, $h]]
-=== $($git log --pretty="%s" $h "$infile") ===
-
-[source,diff]
-----------------------------------------------------------------------
-$($git log -p --pretty= $h $infile)
-----------------------------------------------------------------------
-EOF
-    done
-}
-
 if [ -z "$outfile" ]; then
-    print_asciidoc
+   print_asciidoc $@
 else
-    print_asciidoc > "$outfile"
+   print_asciidoc $@ > $outfile
 fi
